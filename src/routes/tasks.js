@@ -1,7 +1,8 @@
 const express = require('express');
-const Task = require('../models/Task');
-const User = require('../models/User');
-const { authMiddleware, requireRole } = require('../middleware/auth');
+const Task = require('../models/Task'); 
+
+const { authMiddleware, requireRole } = require('../../middleware/token');
+
 
 const router = express.Router(); 
 
@@ -14,7 +15,7 @@ router.post('/', authMiddleware, async (req, res) => {
       return res.status(403).json({ message: 'Only users can create tasks. Professionals are not allowed.' });
     }
     const task = await Task.create({
-      owner: req.user._id, title, description, comment, dueDate});
+      owner: req.user._id, title, description, comment, dueDate, status: 'open'});
     res.status(201).json(task);
   } catch (err) {
     console.error(err);
@@ -43,16 +44,21 @@ router.get('/', authMiddleware, async (req, res) => {
 // Edit a task (only owner and if not accepted)
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
-    const task = await Task.findById(req.params.id);
-    if (!task) return res.status(404).json({ message: 'Task not found' });
-    if (task.owner.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'Forbidden' });
-    // don't allow edits if any offer is accepted or status != open
-    const accepted = task.offers.some(o => o.status === 'accepted');
-    if (accepted || task.status !== 'open') return res.status(400).json({ message: 'Cannot edit task once in progress or accepted' });
-    const updatable = ['title','description','comment','dueDate','category','location','urgency'];
-    updatable.forEach(k => { if (req.body[k] !== undefined) task[k] = req.body[k]; });
-    await task.save();
+    const t = await Task.findById(req.params.id).populate("offers")
+    if ( t.offers.some(o => o.status === 'accepted')){
+    return res.status(400).json({ message: 'Cannot edit task once in progress or accepted' });
+    }
+    if (t.owner.toString() !== req.user._id.toString()){
+    return res.status(403).json({ message: 'Forbidden' });
+    }
+    else {
+      const task = await Task.findByIdAndUpdate(req.params.id, req.body, {new: true});
+       await task.save();
     res.json(task);
+    }
+    if (!t) return res.status(404).json({ message: 'Task not found' });
+    if (t.owner.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'Forbidden' });
+
   } catch(err) { console.error(err); res.status(500).json({ message: 'Server error' }); }
 });
 
@@ -60,13 +66,24 @@ router.put('/:id', authMiddleware, async (req, res) => {
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
-    if (!task) return res.status(404).json({ message: 'Task not found' });
-    if (task.owner.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'Forbidden' });
-    const accepted = task.offers.some(o => o.status === 'accepted');
-    if (accepted) return res.status(400).json({ message: 'Cannot delete task after an offer was accepted' });
-    await task.remove();
-    res.json({ message: 'Task deleted' });
-  } catch(err) { console.error(err); res.status(500).json({ message: 'Server error' }); }
+
+    if (!task) {
+      return res.status(404).json({ message: 'Task not found' });
+    }
+
+    if (task.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+    const acceptedOffer = task.offers?.some(o => o.status === 'accepted');
+    if (acceptedOffer) {
+      return res.status(400).json({ message: 'Cannot delete task once in progress or accepted' });
+    }
+    await task.deleteOne();
+    res.json({ message: 'Task deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 // Professionals: send an offer to a task

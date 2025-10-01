@@ -5,9 +5,11 @@ const app = express();
 const mongoose = require('mongoose');
 const cors = require('cors');
 const logger = require('morgan');
-const userRoute = require('./controllers/users');
+const userRoutes = require('./controllers/users');
 const JwtRouter = require('./controllers/jwt');
 const authRouter = require('./controllers/auth');
+const taskRoutes = require('./src/routes/tasks');
+
 
 mongoose.connect(process.env.MONGODB_URI);
 
@@ -20,11 +22,7 @@ app.use(express.json());
 app.use(logger('dev'));
 app.use('/jwt', JwtRouter);
 app.use('/auth', authRouter);
-app.use('/users', userRoute);
-
-const taskRoutes = require('./src/routes/tasks');
-
-
+app.use('/api/users', userRoutes);
 app.use('/tasks', taskRoutes);
 
 
