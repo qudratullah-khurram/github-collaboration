@@ -1,5 +1,6 @@
 const express = require('express');
 const Task = require('../models/Task'); 
+const User = require('../models/User');
 
 const { authMiddleware, requireRole } = require('../../middleware/token');
 
@@ -137,18 +138,26 @@ router.post('/:taskId/complete', authMiddleware, requireRole('professional'), as
   try {
     const task = await Task.findById(req.params.taskId);
     if (!task) return res.status(404).json({ message: 'Task not found' });
+
     const acceptedOffer = task.offers.find(o => o.status === 'accepted');
     if (!acceptedOffer) return res.status(400).json({ message: 'No accepted offer' });
-    if (acceptedOffer.professional.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'You are not assigned to this task' });
+
+    if (acceptedOffer.professional.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'You are not assigned to this task' });
+    }
     task.status = 'completed';
     await task.save();
-    // update professional stats
     const prof = await User.findById(req.user._id);
+    if (!prof.profile) prof.profile = {}; 
     prof.profile.completedTasks = (prof.profile.completedTasks || 0) + 1;
     await prof.save();
     res.json({ message: 'Task marked as complete' });
-  } catch(err) { console.error(err); res.status(500).json({ message: 'Server error' }); }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
+
 
 // Comment on a task
 router.post('/:id/comments', authMiddleware, async (req, res) => {
