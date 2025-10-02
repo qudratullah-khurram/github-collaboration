@@ -8,8 +8,7 @@ const User = require('../src/models/User');
 const saltRounds = 12;
 
 router.post('/sign-up', async (req, res) => {
-  let isProfessional = req.body.isProfessional == "on" ? true : false;
-
+ 
   try {
     const userInDatabase = await User.findOne({ email: req.body.email });
 
@@ -21,10 +20,10 @@ router.post('/sign-up', async (req, res) => {
       name: req.body.name,
       passwordHash: bcrypt.hashSync(req.body.password, saltRounds),
       email: req.body.email,
-      isProfessional: isProfessional
+      isProfessional: req.body.isProfessional
     });
 
-    const payload = { name: user.name, _id: user._id };
+    const payload = { name: user.name, _id: user._id, isProfessional:user.isProfessional};
     const token = jwt.sign(payload, process.env.JWT_SECRET);
 
     res.status(201).json({ token });

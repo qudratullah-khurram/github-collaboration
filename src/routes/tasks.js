@@ -33,8 +33,8 @@ router.get('/', authMiddleware, async (req, res) => {
       q.owner = req.user._id;
     }
     const tasks = await Task.find(q)
-      .select('title description dueDate status owner offers.createdAt')
-      .populate('owner', 'name');
+      .populate('owner', 'name')
+      .populate("offers.professional");
     res.json(tasks);
   } catch (err) {
     console.error(err);
