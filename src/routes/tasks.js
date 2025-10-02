@@ -164,13 +164,11 @@ router.post('/:id/comments', authMiddleware, async (req, res) => {
     if (!text) {
       return res.status(400).json({ message: 'Missing text' });
     }
-    task.comments.push({
-      author: req.user._id,
-      text
-    });
+    task.comment = text;
     await task.save();
     res.json({ message: 'Comment added' });
   } catch (err) {
+    console.error('Comment route error:', err);
     console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
